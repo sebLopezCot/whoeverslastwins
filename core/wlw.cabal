@@ -1,0 +1,11 @@
+name:                wlw
+version:             0.0.0.0
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable wlw
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  ghc-options:         -O2 -Wall
+  build-depends:       base ==4.9.*
+  default-language:    Haskell2010
