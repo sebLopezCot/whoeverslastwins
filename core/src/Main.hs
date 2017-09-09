@@ -26,14 +26,14 @@ import Servant
     , Proxy(Proxy), ReqBody, Server, serve, (:<|>)((:<|>)), (:>)
     )
 
-data Player = Player
+data User = User
     { id_ :: Int
     , username :: String
     , password :: String
     , score :: Int
     } deriving (Eq, Show, Generic)
 
-instance ToJSON Player where
+instance ToJSON User where
     toJSON pl = object
         [ "id" .= id_ pl
         , "username" .= username pl
@@ -41,43 +41,43 @@ instance ToJSON Player where
         , "score" .= score pl
         ]
 
-data PlayerCreate = PlayerCreate
+data UserCreate = UserCreate
     { createUsername :: String
     , createPassword :: String
     } deriving (Eq, Show, Generic)
 
-instance FromJSON PlayerCreate where
-    parseJSON (Object v) = PlayerCreate
+instance FromJSON UserCreate where
+    parseJSON (Object v) = UserCreate
         <$> v .: "username"
         <*> v .: "password"
-    parseJSON invalid = typeMismatch "PlayerCreate" invalid
+    parseJSON invalid = typeMismatch "UserCreate" invalid
 
-data PlayerUpdate = PlayerUpdate
+data UserUpdate = UserUpdate
     { updateUsername :: Maybe String
     , updatePassword :: Maybe String
     } deriving (Eq, Show, Generic)
 
-instance FromJSON PlayerUpdate where
-    parseJSON (Object v) = PlayerUpdate
+instance FromJSON UserUpdate where
+    parseJSON (Object v) = UserUpdate
         <$> v .: "username"
         <*> v .: "password"
-    parseJSON invalid = typeMismatch "PlayerUpdate" invalid
+    parseJSON invalid = typeMismatch "UserUpdate" invalid
 
-type API = "users" :> ReqBody '[JSON] PlayerCreate :> Post '[JSON] Player
-      :<|> "users" :> Get '[JSON] [Player]
-      :<|> "users" :> Capture "id" Int :> Get '[JSON] Player 
-      :<|> "users" :> Capture "id" Int :> ReqBody '[JSON] PlayerUpdate :> Patch '[JSON] ()
+type API = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
+      :<|> "users" :> Get '[JSON] [User]
+      :<|> "users" :> Capture "id" Int :> Get '[JSON] User 
+      :<|> "users" :> Capture "id" Int :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
       :<|> "users" :> Capture "id" Int :> Delete '[JSON] ()
 
-server :: MVar [Player] -> Server API
-server players = createPlayer
-            :<|> getAllPlayers
-            :<|> getPlayer
-            :<|> updatePlayer
-            :<|> deletePlayer
+server :: MVar [User] -> Server API
+server players = createUser
+            :<|> getAllUsers
+            :<|> getUser
+            :<|> updateUser
+            :<|> deleteUser
   where
-    createPlayer pc = liftIO . modifyMVar players $ \ps -> do
-        let pl = Player
+    createUser pc = liftIO . modifyMVar players $ \ps -> do
+        let pl = User
                 { id_ = succ . maximum . (0 :) $ id_ <$> ps
                 , username = createUsername pc
                 , password = createPassword pc
@@ -85,23 +85,23 @@ server players = createPlayer
                 }
         pure (pl : ps, pl)
 
-    getAllPlayers = liftIO $ readMVar players
+    getAllUsers = liftIO $ readMVar players
 
-    getPlayer id' = liftIO $ do
+    getUser id' = liftIO $ do
         ps <- readMVar players
         pure . fromJust $ find ((== id') . id_) ps
 
-    updatePlayer id' pu = liftIO . modifyMVar players $ \ps -> do
+    updateUser id' pu = liftIO . modifyMVar players $ \ps -> do
         let update pl = flip (bool pl) (id' == id_ pl) $ pl
                 { username = fromMaybe (username pl) (updateUsername pu)
                 , password = fromMaybe (password pl) (updatePassword pu)
                 }
         pure (update <$> ps, ())
 
-    deletePlayer id' = liftIO . modifyMVar players $ \ps ->
+    deleteUser id' = liftIO . modifyMVar players $ \ps ->
         pure (take id' ps <> drop (id' + 1) ps, ())
 
-app :: MVar [Player] -> Application
+app :: MVar [User] -> Application
 app = serve @API Proxy . server
 
 main :: IO ()
