@@ -1,66 +1,110 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Main (main) where
 
+import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, readMVar)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson.Types
-import GHC.Generics
-import Network.Wai.Handler.Warp
+    ( FromJSON, ToJSON, Value(Object), object
+    , parseJSON, toJSON, typeMismatch, (.:), (.=)
+    )
+import Data.Bool (bool)
+import Data.Foldable (find)
+import Data.Maybe (fromJust, fromMaybe)
+import Data.Monoid ((<>))
+import GHC.Generics (Generic)
+import Network.Wai.Handler.Warp (run)
 import Servant
+    ( Application, Capture, Delete, Get, JSON, Patch, Post
+    , Proxy(Proxy), ReqBody, Server, serve, (:<|>)((:<|>)), (:>)
+    )
 
-data Player = Player {
-    id :: Int,
-    username :: String,
-    password :: String,
-    score :: Int
-} deriving (Eq, Show, Generic)
+data User = User
+    { id_ :: Int
+    , username :: String
+    , password :: String
+    , score :: Int
+    } deriving (Eq, Show, Generic)
 
-instance ToJSON Player
+instance ToJSON User where
+    toJSON pl = object
+        [ "id" .= id_ pl
+        , "username" .= username pl
+        , "password" .= password pl
+        , "score" .= score pl
+        ]
 
-data ClientWriteableInfo = ClientWriteableInfo {
-    inputUsername :: String,
-    inputPassword :: String
-} deriving (Eq, Show, Generic)
+data UserCreate = UserCreate
+    { createUsername :: String
+    , createPassword :: String
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON ClientWriteableInfo
+instance FromJSON UserCreate where
+    parseJSON (Object v) = UserCreate
+        <$> v .: "username"
+        <*> v .: "password"
+    parseJSON invalid = typeMismatch "UserCreate" invalid
 
-type API = "users" :> ReqBody '[JSON] ClientWriteableInfo :> Post '[JSON] Player
-        :<|> "users" :> Get '[JSON] [Player]
-        :<|> "users" :> Capture "id" Int :> Get '[JSON] Player 
-        :<|> "users" :> Capture "id" Int :> ReqBody '[JSON] ClientWriteableInfo :> Patch '[JSON] ()
-        :<|> "users" :> Capture "id" Int :> Delete '[JSON] ()
+data UserUpdate = UserUpdate
+    { updateUsername :: Maybe String
+    , updatePassword :: Maybe String
+    } deriving (Eq, Show, Generic)
 
-server :: Server API
-server = createPlayer
-    :<|> getAllPlayers
-    :<|> getPlayer
-    :<|> updatePlayer
-    :<|> deletePlayer
+instance FromJSON UserUpdate where
+    parseJSON (Object v) = UserUpdate
+        <$> v .: "username"
+        <*> v .: "password"
+    parseJSON invalid = typeMismatch "UserUpdate" invalid
 
-    where
-        createPlayer info = pure (Player 0 "Seb" "p@ssword" 350)
+type API = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
+      :<|> "users" :> Get '[JSON] [User]
+      :<|> "users" :> Capture "id" Int :> Get '[JSON] User 
+      :<|> "users" :> Capture "id" Int :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
+      :<|> "users" :> Capture "id" Int :> Delete '[JSON] ()
 
-        getAllPlayers = pure [(Player 0 "Seb" "p@ssword" 350)]
-        
-        getPlayer id_ = pure (Player 0 "Seb" "p@ssword" 350)
+server :: MVar [User] -> Server API
+server players = createUser
+            :<|> getAllUsers
+            :<|> getUser
+            :<|> updateUser
+            :<|> deleteUser
+  where
+    createUser pc = liftIO . modifyMVar players $ \ps -> do
+        let pl = User
+                { id_ = succ . maximum . (0 :) $ id_ <$> ps
+                , username = createUsername pc
+                , password = createPassword pc
+                , score = 0
+                }
+        pure (pl : ps, pl)
 
-        updatePlayer id_ info = pure ()
+    getAllUsers = liftIO $ readMVar players
 
-        deletePlayer id_ = pure ()
+    getUser id' = liftIO $ do
+        ps <- readMVar players
+        pure . fromJust $ find ((== id') . id_) ps
 
-api :: Proxy API
-api = Proxy
+    updateUser id' pu = liftIO . modifyMVar players $ \ps -> do
+        let update pl = flip (bool pl) (id' == id_ pl) $ pl
+                { username = fromMaybe (username pl) (updateUsername pu)
+                , password = fromMaybe (password pl) (updatePassword pu)
+                }
+        pure (update <$> ps, ())
 
-app :: Application
-app = serve api server
+    deleteUser id' = liftIO . modifyMVar players $ \ps ->
+        pure (take id' ps <> drop (id' + 1) ps, ())
+
+app :: MVar [User] -> Application
+app = serve @API Proxy . server
 
 main :: IO ()
-main = run 8081 app
-
-
+main = do
+    players <- newMVar []
+    run 8081 $ app players

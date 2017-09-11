@@ -1,0 +1,11 @@
+resolver: lts-8.11
+packages:
+- .
+- location:
+    git: https://github.com/liqula/react-hs
+    commit: cd01067d88a6bff2ff080f7441b39743f8d905dc
+  extra-dep: true
+  subdirs:
+  - react-hs
+extra-deps:
+- ghcjs-base-stub-0.1.0.2
