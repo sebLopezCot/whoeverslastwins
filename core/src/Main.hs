@@ -85,6 +85,6 @@ app :: SqlBackend -> Application
 app db = serve @API Proxy $ enter (NT $ liftIO . flip runReaderT db) server
 
 main :: IO ()
-main = runNoLoggingT . withSqliteConn ":memory:" $ \db -> do
+main = runNoLoggingT . withSqliteConn "wlw.db" $ \db -> do
     runReaderT (runMigration migrateUser) db
     liftIO . run 8081 $ app db
