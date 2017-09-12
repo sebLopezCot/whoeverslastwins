@@ -5,7 +5,7 @@ module Main (main) where
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runNoLoggingT)
-import Control.Monad.Reader (runReaderT)
+import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
 import Data.Int (Int64)
 import Data.Maybe (catMaybes, fromJust)
@@ -15,8 +15,9 @@ import Database.Persist.Sqlite (withSqliteConn)
 import Network.Wai.Handler.Warp (run)
 import Servant
     ( Application, Capture, Delete, Get, JSON, Patch, Post
-    , Proxy(Proxy), ReqBody, Server, serve, (:<|>)((:<|>)), (:>)
+    , Proxy(Proxy), ReqBody, ServerT, serve, (:<|>)((:<|>)), (:>)
     )
+import Servant.Utils.Enter ((:~>)(NT), enter)
 
 import Models.User
 
@@ -48,14 +49,14 @@ type API = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
       :<|> "users" :> Capture "id" Int64 :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
       :<|> "users" :> Capture "id" UserId :> Delete '[JSON] ()
 
-server :: SqlBackend -> Server API
-server db = createUser
-       :<|> getAllUsers
-       :<|> getUser
-       :<|> updateUser
-       :<|> deleteUser
+server :: ServerT API (ReaderT SqlBackend IO)
+server = createUser
+    :<|> getAllUsers
+    :<|> getUser
+    :<|> updateUser
+    :<|> deleteUser
   where
-    createUser pc = flip runReaderT db $ do
+    createUser pc = do
         let user = User
                 { userUsername = createUsername pc
                 , userPassword = createPassword pc
@@ -64,24 +65,24 @@ server db = createUser
         insert_ user
         pure user
 
-    getAllUsers = flip runReaderT db $ do
+    getAllUsers = do
         users <- selectList [] []
         pure $ entityVal <$> users
 
-    getUser id_ = flip runReaderT db $ do
+    getUser id_ = do
         userM <- get $ toSqlKey id_
         pure $ fromJust userM
 
-    updateUser id_ pu = flip runReaderT db $
+    updateUser id_ pu =
         update (toSqlKey id_) $ catMaybes
             [ (UserUsername =.) <$> updateUsername pu
             , (UserPassword =.) <$> updatePassword pu
             ]
 
-    deleteUser = flip runReaderT db . delete
+    deleteUser = delete
 
 app :: SqlBackend -> Application
-app = serve @API Proxy . server
+app db = serve @API Proxy $ enter (NT $ liftIO . flip runReaderT db) server
 
 main :: IO ()
 main = runNoLoggingT . withSqliteConn ":memory:" $ \db -> do
