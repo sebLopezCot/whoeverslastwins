@@ -18,3 +18,4 @@ executable wlw-core
                      , servant ==0.11.*
                      , servant-server ==0.11.*
                      , warp ==3.2.*
+  other-modules:       Models.User
