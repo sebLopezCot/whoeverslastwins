@@ -1,9 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -19,7 +15,6 @@ import Data.Bool (bool)
 import Data.Foldable (find)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Monoid ((<>))
-import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (run)
 import Servant
     ( Application, Capture, Delete, Get, JSON, Patch, Post
@@ -31,7 +26,7 @@ data User = User
     , username :: String
     , password :: String
     , score :: Int
-    } deriving (Eq, Show, Generic)
+    } deriving (Eq, Show)
 
 instance ToJSON User where
     toJSON pl = object
@@ -44,7 +39,7 @@ instance ToJSON User where
 data UserCreate = UserCreate
     { createUsername :: String
     , createPassword :: String
-    } deriving (Eq, Show, Generic)
+    } deriving (Eq, Show)
 
 instance FromJSON UserCreate where
     parseJSON (Object v) = UserCreate
@@ -55,7 +50,7 @@ instance FromJSON UserCreate where
 data UserUpdate = UserUpdate
     { updateUsername :: Maybe String
     , updatePassword :: Maybe String
-    } deriving (Eq, Show, Generic)
+    } deriving (Eq, Show)
 
 instance FromJSON UserUpdate where
     parseJSON (Object v) = UserUpdate
