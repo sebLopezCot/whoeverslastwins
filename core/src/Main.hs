@@ -1,40 +1,24 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, OverloadedStrings #-}
+{-# LANGUAGE TypeApplications, TypeFamilies, TypeOperators #-}
 
 module Main (main) where
 
-import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, readMVar)
 import Control.Monad.IO.Class (liftIO)
-import Data.Aeson.Types
-    ( FromJSON, ToJSON, Value(Object), object
-    , parseJSON, toJSON, typeMismatch, (.:), (.=)
-    )
-import Data.Bool (bool)
-import Data.Foldable (find)
-import Data.Maybe (fromJust, fromMaybe)
-import Data.Monoid ((<>))
+import Control.Monad.Logger (runNoLoggingT)
+import Control.Monad.Reader (runReaderT)
+import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
+import Data.Int (Int64)
+import Data.Maybe (catMaybes, fromJust)
+import Database.Persist (delete, entityVal, get, insert_, selectList, update, (=.))
+import Database.Persist.Sql (SqlBackend, runMigration, toSqlKey)
+import Database.Persist.Sqlite (withSqliteConn)
 import Network.Wai.Handler.Warp (run)
 import Servant
     ( Application, Capture, Delete, Get, JSON, Patch, Post
     , Proxy(Proxy), ReqBody, Server, serve, (:<|>)((:<|>)), (:>)
     )
 
-data User = User
-    { id_ :: Int
-    , username :: String
-    , password :: String
-    , score :: Int
-    } deriving (Eq, Show)
-
-instance ToJSON User where
-    toJSON pl = object
-        [ "id" .= id_ pl
-        , "username" .= username pl
-        , "password" .= password pl
-        , "score" .= score pl
-        ]
+import Models.User
 
 data UserCreate = UserCreate
     { createUsername :: String
@@ -60,46 +44,46 @@ instance FromJSON UserUpdate where
 
 type API = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
       :<|> "users" :> Get '[JSON] [User]
-      :<|> "users" :> Capture "id" Int :> Get '[JSON] User 
-      :<|> "users" :> Capture "id" Int :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
-      :<|> "users" :> Capture "id" Int :> Delete '[JSON] ()
+      :<|> "users" :> Capture "id" Int64 :> Get '[JSON] User 
+      :<|> "users" :> Capture "id" Int64 :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
+      :<|> "users" :> Capture "id" UserId :> Delete '[JSON] ()
 
-server :: MVar [User] -> Server API
-server players = createUser
-            :<|> getAllUsers
-            :<|> getUser
-            :<|> updateUser
-            :<|> deleteUser
+server :: SqlBackend -> Server API
+server db = createUser
+       :<|> getAllUsers
+       :<|> getUser
+       :<|> updateUser
+       :<|> deleteUser
   where
-    createUser pc = liftIO . modifyMVar players $ \ps -> do
-        let pl = User
-                { id_ = succ . maximum . (0 :) $ id_ <$> ps
-                , username = createUsername pc
-                , password = createPassword pc
-                , score = 0
+    createUser pc = flip runReaderT db $ do
+        let user = User
+                { userUsername = createUsername pc
+                , userPassword = createPassword pc
+                , userScore = 0
                 }
-        pure (pl : ps, pl)
+        insert_ user
+        pure user
 
-    getAllUsers = liftIO $ readMVar players
+    getAllUsers = flip runReaderT db $ do
+        users <- selectList [] []
+        pure $ entityVal <$> users
 
-    getUser id' = liftIO $ do
-        ps <- readMVar players
-        pure . fromJust $ find ((== id') . id_) ps
+    getUser id_ = flip runReaderT db $ do
+        userM <- get $ toSqlKey id_
+        pure $ fromJust userM
 
-    updateUser id' pu = liftIO . modifyMVar players $ \ps -> do
-        let update pl = flip (bool pl) (id' == id_ pl) $ pl
-                { username = fromMaybe (username pl) (updateUsername pu)
-                , password = fromMaybe (password pl) (updatePassword pu)
-                }
-        pure (update <$> ps, ())
+    updateUser id_ pu = flip runReaderT db $
+        update (toSqlKey id_) $ catMaybes
+            [ (UserUsername =.) <$> updateUsername pu
+            , (UserPassword =.) <$> updatePassword pu
+            ]
 
-    deleteUser id' = liftIO . modifyMVar players $ \ps ->
-        pure (take id' ps <> drop (id' + 1) ps, ())
+    deleteUser = flip runReaderT db . delete
 
-app :: MVar [User] -> Application
+app :: SqlBackend -> Application
 app = serve @API Proxy . server
 
 main :: IO ()
-main = do
-    players <- newMVar []
-    run 8081 $ app players
+main = runNoLoggingT . withSqliteConn ":memory:" $ \db -> do
+    runReaderT (runMigration migrateUser) db
+    liftIO . run 8081 $ app db
