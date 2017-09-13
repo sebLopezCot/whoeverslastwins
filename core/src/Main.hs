@@ -7,10 +7,9 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
-import Data.Int (Int64)
 import Data.Maybe (catMaybes, fromJust)
 import Database.Persist (delete, entityVal, get, insert_, selectList, update, (=.))
-import Database.Persist.Sql (SqlBackend, runMigration, toSqlKey)
+import Database.Persist.Sql (SqlBackend, runMigration)
 import Database.Persist.Sqlite (withSqliteConn)
 import Network.Wai.Handler.Warp (run)
 import Servant
@@ -45,8 +44,8 @@ instance FromJSON UserUpdate where
 
 type API = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
       :<|> "users" :> Get '[JSON] [User]
-      :<|> "users" :> Capture "id" Int64 :> Get '[JSON] User 
-      :<|> "users" :> Capture "id" Int64 :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
+      :<|> "users" :> Capture "id" UserId :> Get '[JSON] User 
+      :<|> "users" :> Capture "id" UserId :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
       :<|> "users" :> Capture "id" UserId :> Delete '[JSON] ()
 
 server :: ServerT API (ReaderT SqlBackend IO)
@@ -70,11 +69,11 @@ server = createUser
         pure $ entityVal <$> users
 
     getUser id_ = do
-        userM <- get $ toSqlKey id_
+        userM <- get id_
         pure $ fromJust userM
 
     updateUser id_ pu =
-        update (toSqlKey id_) $ catMaybes
+        update id_ $ catMaybes
             [ (UserUsername =.) <$> updateUsername pu
             , (UserPassword =.) <$> updatePassword pu
             ]
