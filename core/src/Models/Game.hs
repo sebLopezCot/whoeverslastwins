@@ -24,3 +24,11 @@ Game
     timeout DateTime
     deriving Show
 |]
+
+instance ToJSON Game where
+    toJSON pl = object
+        [ "player1" .= gamePlayer1 pl
+        , "player2" .= gamePlayer2 pl
+        , "turn" .= gameTurn pl
+        , "timeout" .= gameTimeout pl
+        ]
