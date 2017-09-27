@@ -5,6 +5,7 @@ module Main (main) where
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Reader (ReaderT, runReaderT)
+import Data.DateTime (addMinutes, getCurrentTime)
 import Data.Foldable (toList)
 import Data.Maybe (fromJust)
 import Database.Persist (delete, entityVal, get, insert_, selectList, update, (=.))
@@ -15,15 +16,14 @@ import Servant (Application, Proxy(Proxy), ServerT, serve, (:<|>)((:<|>)))
 import Servant.Utils.Enter ((:~>)(NT), enter)
 
 import Api
+import Api.Games
 import Api.Users
+import Models.Game
 import Models.User
 
 server :: ServerT API (ReaderT SqlBackend IO)
-server = createUser
-    :<|> getAllUsers
-    :<|> getUser
-    :<|> updateUser
-    :<|> deleteUser
+server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser)
+    :<|> (createGame :<|> getAllGames :<|> getGame)
   where
     createUser pc = do
         let user = User
@@ -45,6 +45,25 @@ server = createUser
     updateUser id_ pu = update id_ . toList $ (UserPassword =.) <$> updatePassword pu
 
     deleteUser = delete
+
+    createGame gc = do
+        time <- liftIO getCurrentTime
+        let game = Game
+                { gamePlayer1 = createPlayer1 gc
+                , gamePlayer2 = createPlayer2 gc
+                , gameTurn = 0
+                , gameTimeout = addMinutes 1440 time
+                }
+        insert_ game
+        pure game
+
+    getAllGames = do
+        games <- selectList [] []
+        pure $ entityVal <$> games
+
+    getGame id_ = do
+        userM <- get id_
+        pure $ fromJust userM
 
 app :: SqlBackend -> Application
 app db = serve @API Proxy $ enter (NT $ liftIO . flip runReaderT db) server

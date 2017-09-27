@@ -4,6 +4,7 @@ module Api where
 
 import Servant ((:<|>))
 
+import Api.Games
 import Api.Users
 
-type API = UsersAPI
+type API = UsersAPI :<|> GamesAPI
