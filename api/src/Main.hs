@@ -15,6 +15,7 @@ import Servant (Application, Proxy(Proxy), ServerT, serve, (:<|>)((:<|>)))
 import Servant.Utils.Enter ((:~>)(NT), enter)
 
 import Api
+import Api.Users
 import Models.User
 
 server :: ServerT API (ReaderT SqlBackend IO)
