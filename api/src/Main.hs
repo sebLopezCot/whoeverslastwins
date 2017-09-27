@@ -5,7 +5,8 @@ module Main (main) where
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Reader (ReaderT, runReaderT)
-import Data.Maybe (catMaybes, fromJust)
+import Data.Foldable (toList)
+import Data.Maybe (fromJust)
 import Database.Persist (delete, entityVal, get, insert_, selectList, update, (=.))
 import Database.Persist.Sql (SqlBackend, runMigration)
 import Database.Persist.Sqlite (withSqliteConn)
@@ -40,11 +41,7 @@ server = createUser
         userM <- get id_
         pure $ fromJust userM
 
-    updateUser id_ pu =
-        update id_ $ catMaybes
-            [ (UserUsername =.) <$> updateUsername pu
-            , (UserPassword =.) <$> updatePassword pu
-            ]
+    updateUser id_ pu = update id_ . toList $ (UserPassword =.) <$> updatePassword pu
 
     deleteUser = delete
 

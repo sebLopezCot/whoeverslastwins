@@ -21,15 +21,12 @@ instance FromJSON UserCreate where
         <*> v .: "password"
     parseJSON invalid = typeMismatch "UserCreate" invalid
 
-data UserUpdate = UserUpdate
-    { updateUsername :: Maybe String
-    , updatePassword :: Maybe String
+newtype UserUpdate = UserUpdate
+    { updatePassword :: Maybe String
     } deriving (Eq, Show)
 
 instance FromJSON UserUpdate where
-    parseJSON (Object v) = UserUpdate
-        <$> v .: "username"
-        <*> v .: "password"
+    parseJSON (Object v) = UserUpdate <$> v .: "password"
     parseJSON invalid = typeMismatch "UserUpdate" invalid
 
 type API = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
