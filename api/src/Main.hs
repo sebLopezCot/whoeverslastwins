@@ -21,7 +21,7 @@ import Api.Users
 import Models.Game
 import Models.User
 
-server :: ServerT API (ReaderT SqlBackend IO)
+server :: ServerT Api (ReaderT SqlBackend IO)
 server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser)
     :<|> (createGame :<|> getAllGames :<|> getGame)
   where
@@ -66,7 +66,7 @@ server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUs
         pure $ fromJust userM
 
 app :: SqlBackend -> Application
-app db = serve @API Proxy $ enter (NT $ liftIO . flip runReaderT db) server
+app db = serve @Api Proxy $ enter (NT $ liftIO . flip runReaderT db) server
 
 main :: IO ()
 main = runNoLoggingT . withSqliteConn "wlw.db" $ \db -> do

@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds, OverloadedStrings, TypeOperators #-}
 
-module Api.Users (UsersAPI, createUsername, createPassword, updatePassword) where
+module Api.Users (UsersApi, createUsername, createPassword, updatePassword) where
 
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
 import Servant
@@ -29,7 +29,7 @@ instance FromJSON UserUpdate where
     parseJSON (Object v) = UserUpdate <$> v .: "password"
     parseJSON invalid = typeMismatch "UserUpdate" invalid
 
-type UsersAPI
+type UsersApi
        = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
     :<|> "users" :> Get '[JSON] [User]
     :<|> "users" :> Capture "id" UserId :> Get '[JSON] User 

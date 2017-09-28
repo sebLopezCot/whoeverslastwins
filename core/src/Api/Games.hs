@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds, OverloadedStrings, TypeOperators #-}
 
-module Api.Games (GamesAPI, createPlayer1, createPlayer2) where
+module Api.Games (GamesApi, createPlayer1, createPlayer2) where
 
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
 import Servant
@@ -22,7 +22,7 @@ instance FromJSON GameCreate where
         <*> v .: "player2"
     parseJSON invalid = typeMismatch "GameCreate" invalid
 
-type GamesAPI
+type GamesApi
        = "games" :> ReqBody '[JSON] GameCreate :> Post '[JSON] Game
     :<|> "games" :> Get '[JSON] [Game]
     :<|> "games" :> Capture "id" GameId :> Get '[JSON] Game
