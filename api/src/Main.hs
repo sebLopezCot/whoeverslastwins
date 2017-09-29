@@ -51,7 +51,7 @@ server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUs
         let game = Game
                 { gamePlayer1 = createPlayer1 gc
                 , gamePlayer2 = createPlayer2 gc
-                , gameTurn = 0
+                , gameTurn = 1
                 , gameTimeout = addMinutes 1440 time
                 }
         insert_ game
