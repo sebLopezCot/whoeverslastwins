@@ -71,4 +71,5 @@ app db = serve @Api Proxy $ enter (NT $ liftIO . flip runReaderT db) server
 main :: IO ()
 main = runNoLoggingT . withSqliteConn "wlw.db" $ \db -> do
     runReaderT (runMigration migrateUser) db
+    runReaderT (runMigration migrateGame) db
     liftIO . run 8081 $ app db
