@@ -1,18 +1,18 @@
-{-# LANGUAGE DataKinds, OverloadedStrings, TypeApplications, TypeFamilies #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, OverloadedStrings, TypeApplications, TypeFamilies #-}
 
 module Main (main) where
 
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Except (throwError)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.DateTime (addMinutes, getCurrentTime)
 import Data.Foldable (toList)
-import Data.Maybe (fromJust)
 import Database.Persist (delete, entityVal, get, insert_, selectList, update, updateGet, (=.))
 import Database.Persist.Sql (SqlBackend, runMigration)
 import Database.Persist.Sqlite (withSqliteConn)
 import Network.Wai.Handler.Warp (run)
-import Servant (Application, Proxy(Proxy), ServerT, serve, (:<|>)((:<|>)))
+import Servant (Application, Handler, Proxy(Proxy), ServerT, err404, serve, (:<|>)((:<|>)))
 import Servant.Utils.Enter ((:~>)(NT), enter)
 
 import Api
@@ -21,7 +21,7 @@ import Api.Users
 import Models.Game
 import Models.User
 
-server :: ServerT Api (ReaderT SqlBackend IO)
+server :: ServerT Api (ReaderT SqlBackend Handler)
 server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser)
     :<|> (createGame :<|> getAllGames :<|> getGame :<|> playGame)
   where
@@ -40,7 +40,7 @@ server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUs
 
     getUser id_ = do
         userM <- get id_
-        pure $ fromJust userM
+        maybe (throwError err404) pure userM
 
     updateUser id_ pu = update id_ . toList $ (UserPassword =.) <$> updatePassword pu
 
@@ -62,11 +62,12 @@ server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUs
         pure $ entityVal <$> games
 
     getGame id_ = do
-        userM <- get id_
-        pure $ fromJust userM
+        gameM <- get id_
+        maybe (throwError err404) pure gameM
 
     playGame gId uId = do
-        game <- fromJust <$> get gId
+        gameM <- get gId
+        game <- maybe (throwError err404) pure gameM
         time <- liftIO getCurrentTime
         case gameTurn game of
             1 | gamePlayer1 game == uId ->
@@ -76,7 +77,7 @@ server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUs
             _ -> pure game
 
 app :: SqlBackend -> Application
-app db = serve @Api Proxy $ enter (NT $ liftIO . flip runReaderT db) server
+app db = serve @Api Proxy $ enter (NT $ flip (runReaderT @_ @_ @Handler) db) server
 
 main :: IO ()
 main = runNoLoggingT . withSqliteConn "wlw.db" $ \db -> do
