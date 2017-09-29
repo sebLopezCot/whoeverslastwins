@@ -8,7 +8,7 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.DateTime (addMinutes, getCurrentTime)
 import Data.Foldable (toList)
 import Data.Maybe (fromJust)
-import Database.Persist (delete, entityVal, get, insert_, selectList, update, (=.))
+import Database.Persist (delete, entityVal, get, insert_, selectList, update, updateGet, (=.))
 import Database.Persist.Sql (SqlBackend, runMigration)
 import Database.Persist.Sqlite (withSqliteConn)
 import Network.Wai.Handler.Warp (run)
@@ -23,7 +23,7 @@ import Models.User
 
 server :: ServerT Api (ReaderT SqlBackend IO)
 server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser)
-    :<|> (createGame :<|> getAllGames :<|> getGame)
+    :<|> (createGame :<|> getAllGames :<|> getGame :<|> playGame)
   where
     createUser pc = do
         let user = User
@@ -64,6 +64,16 @@ server = (createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUs
     getGame id_ = do
         userM <- get id_
         pure $ fromJust userM
+
+    playGame gId uId = do
+        game <- fromJust <$> get gId
+        time <- liftIO getCurrentTime
+        case gameTurn game of
+            1 | gamePlayer1 game == uId ->
+                updateGet gId [ GameTurn =. 2, GameTimeout =. addMinutes 1440 time ]
+            2 | gamePlayer2 game == uId ->
+                updateGet gId [ GameTurn =. 1, GameTimeout =. addMinutes 1440 time ]
+            _ -> pure game
 
 app :: SqlBackend -> Application
 app db = serve @Api Proxy $ enter (NT $ liftIO . flip runReaderT db) server

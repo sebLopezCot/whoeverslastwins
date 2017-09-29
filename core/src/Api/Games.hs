@@ -26,3 +26,4 @@ type GamesApi
        = "games" :> ReqBody '[JSON] GameCreate :> Post '[JSON] Game
     :<|> "games" :> Get '[JSON] [Game]
     :<|> "games" :> Capture "id" GameId :> Get '[JSON] Game
+    :<|> "games" :> Capture "gId" GameId :> "play" :> Capture "uId" UserId :> Post '[JSON] Game
