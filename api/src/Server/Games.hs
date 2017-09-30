@@ -40,6 +40,7 @@ gamesServer = createGame :<|> getAllGames :<|> getGame :<|> playGame
         game <- maybe (throwError err404) pure gameM
         time <- liftIO getCurrentTime
         case gameTurn game of
+            _ | time > gameTimeout game -> pure game
             1 | gamePlayer1 game == uId ->
                 updateGet gId [ GameTurn =. 2, GameTimeout =. addMinutes 1440 time ]
             2 | gamePlayer2 game == uId ->
