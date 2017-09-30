@@ -3,10 +3,7 @@
 module Api.Games (GamesApi, createPlayer1, createPlayer2) where
 
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
-import Servant
-    ( Capture, Delete, Get, JSON, Patch, Post
-    , ReqBody, (:<|>), (:>)
-    )
+import Servant (Capture, Get, JSON, Post , ReqBody, (:<|>), (:>))
 
 import Models.Game
 import Models.User
