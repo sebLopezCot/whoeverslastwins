@@ -11,8 +11,7 @@ module Models.Game
 import Data.Aeson.Types (ToJSON, object, toJSON, (.=))
 import Data.DateTime (DateTime)
 import Database.Persist (EntityField)
-import Database.Persist.TH
-    ( derivePersistField, mkMigrate, mkPersist, persistLowerCase, share, sqlSettings )
+import Database.Persist.TH ( mkMigrate, mkPersist, persistLowerCase, share, sqlSettings )
 
 import Models.User
 
