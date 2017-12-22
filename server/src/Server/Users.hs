@@ -15,7 +15,7 @@ import Models.User
 usersServer :: ServerT UsersApi (ReaderT SqlBackend Handler)
 usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser
   where
-    createUser pc = do
+    createUser _ pc = do
         let user = User
                 { userUsername = createUsername pc
                 , userPassword = createPassword pc
@@ -24,14 +24,14 @@ usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> dele
         insert_ user
         pure user
 
-    getAllUsers = do
+    getAllUsers _ = do
         users <- selectList [] []
         pure $ entityVal <$> users
 
-    getUser id_ = do
+    getUser _ id_ = do
         userM <- get id_
         maybe (throwError err404) pure userM
 
-    updateUser id_ pu = update id_ . toList $ (UserPassword =.) <$> updatePassword pu
+    updateUser _ id_ pu = update id_ . toList $ (UserPassword =.) <$> updatePassword pu
 
-    deleteUser = delete
+    deleteUser _ = delete

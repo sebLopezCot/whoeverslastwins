@@ -3,10 +3,7 @@
 module Api.Users (UsersApi, createUsername, createPassword, updatePassword) where
 
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
-import Servant
-    ( Capture, Delete, Get, JSON, Patch, Post
-    , ReqBody, (:<|>), (:>)
-    )
+import Servant (Capture, Delete, Get, Header, JSON, Patch, Post, ReqBody, (:<|>), (:>))
 
 import Models.User
 
@@ -29,9 +26,11 @@ instance FromJSON UserUpdate where
     parseJSON (Object v) = UserUpdate <$> v .: "password"
     parseJSON invalid = typeMismatch "UserUpdate" invalid
 
+type UsersUrl a = Header "Authorization" String :> "users" :> a
+
 type UsersApi
-       = "users" :> ReqBody '[JSON] UserCreate :> Post '[JSON] User
-    :<|> "users" :> Get '[JSON] [User]
-    :<|> "users" :> Capture "id" UserId :> Get '[JSON] User 
-    :<|> "users" :> Capture "id" UserId :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ()
-    :<|> "users" :> Capture "id" UserId :> Delete '[JSON] ()
+       = UsersUrl (ReqBody '[JSON] UserCreate :> Post '[JSON] User)
+    :<|> UsersUrl (Get '[JSON] [User])
+    :<|> UsersUrl (Capture "id" UserId :> Get '[JSON] User)
+    :<|> UsersUrl (Capture "id" UserId :> ReqBody '[JSON] UserUpdate :> Patch '[JSON] ())
+    :<|> UsersUrl (Capture "id" UserId :> Delete '[JSON] ())

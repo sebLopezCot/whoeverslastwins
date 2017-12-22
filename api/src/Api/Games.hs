@@ -3,7 +3,7 @@
 module Api.Games (GamesApi, createPlayer1, createPlayer2) where
 
 import Data.Aeson.Types (FromJSON, Value(Object), parseJSON, typeMismatch, (.:))
-import Servant (Capture, Get, JSON, Post , ReqBody, (:<|>), (:>))
+import Servant (Capture, Get, Header, JSON, Post, ReqBody, (:<|>), (:>))
 
 import Models.Game
 import Models.User
@@ -19,8 +19,10 @@ instance FromJSON GameCreate where
         <*> v .: "player2"
     parseJSON invalid = typeMismatch "GameCreate" invalid
 
+type GamesUrl a = Header "Authorization" String :> "games" :> a
+
 type GamesApi
-       = "games" :> ReqBody '[JSON] GameCreate :> Post '[JSON] Game
-    :<|> "games" :> Get '[JSON] [Game]
-    :<|> "games" :> Capture "id" GameId :> Get '[JSON] Game
-    :<|> "games" :> Capture "gId" GameId :> "play" :> Capture "uId" UserId :> Post '[JSON] Game
+       = GamesUrl (ReqBody '[JSON] GameCreate :> Post '[JSON] Game)
+    :<|> GamesUrl (Get '[JSON] [Game])
+    :<|> GamesUrl (Capture "id" GameId :> Get '[JSON] Game)
+    :<|> GamesUrl (Capture "gId" GameId :> "play" :> Capture "uId" UserId :> Post '[JSON] Game)

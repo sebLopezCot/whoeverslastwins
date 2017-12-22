@@ -16,7 +16,7 @@ import Models.Game
 gamesServer :: ServerT GamesApi (ReaderT SqlBackend Handler)
 gamesServer = createGame :<|> getAllGames :<|> getGame :<|> playGame
   where
-    createGame gc = do
+    createGame _ gc = do
         time <- liftIO getCurrentTime
         let game = Game
                 { gamePlayer1 = createPlayer1 gc
@@ -27,15 +27,15 @@ gamesServer = createGame :<|> getAllGames :<|> getGame :<|> playGame
         insert_ game
         pure game
 
-    getAllGames = do
+    getAllGames _ = do
         games <- selectList [] []
         pure $ entityVal <$> games
 
-    getGame id_ = do
+    getGame _ id_ = do
         gameM <- get id_
         maybe (throwError err404) pure gameM
 
-    playGame gId uId = do
+    playGame _ gId uId = do
         gameM <- get gId
         game <- maybe (throwError err404) pure gameM
         time <- liftIO getCurrentTime
