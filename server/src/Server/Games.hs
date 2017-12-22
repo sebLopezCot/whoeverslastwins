@@ -12,6 +12,7 @@ import Servant (Handler, ServerT, err404, (:<|>)((:<|>)))
 
 import Api.Games
 import Models.Game
+import Utils
 
 gamesServer :: ServerT GamesApi (ReaderT SqlBackend Handler)
 gamesServer = createGame :<|> getAllGames :<|> getGame :<|> playGame
@@ -35,7 +36,8 @@ gamesServer = createGame :<|> getAllGames :<|> getGame :<|> playGame
         gameM <- get id_
         maybe (throwError err404) pure gameM
 
-    playGame _ gId uId = do
+    playGame ma gId uId = do
+        authUser ma uId
         gameM <- get gId
         game <- maybe (throwError err404) pure gameM
         time <- liftIO getCurrentTime

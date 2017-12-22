@@ -2,15 +2,15 @@
 
 module Server.Users (usersServer) where
 
-import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT)
-import Data.Foldable (toList)
-import Database.Persist (delete, entityVal, get, insert_, selectList, update, (=.))
+import Database.Persist
+    (Filter(Filter), PersistFilter(Eq), delete, entityVal, insert_, replace, selectList)
 import Database.Persist.Sql (SqlBackend)
-import Servant (Handler, ServerT, err404, (:<|>)((:<|>)))
+import Servant (Handler, ServerT, (:<|>)((:<|>)))
 
 import Api.Users
 import Models.User
+import Utils
 
 usersServer :: ServerT UsersApi (ReaderT SqlBackend Handler)
 usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser
@@ -24,14 +24,17 @@ usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> dele
         insert_ user
         pure user
 
-    getAllUsers _ = do
-        users <- selectList [] []
+    getAllUsers = maybe (pure []) $ \a -> do
+        users <- selectList [Filter UserPassword (Left a) Eq] []
         pure $ entityVal <$> users
 
-    getUser _ id_ = do
-        userM <- get id_
-        maybe (throwError err404) pure userM
+    getUser = authUser
 
-    updateUser _ id_ pu = update id_ . toList $ (UserPassword =.) <$> updatePassword pu
+    updateUser ma id_ pu = do
+        user <- authUser ma id_
+        flip (maybe $ pure ()) (updatePassword pu) $ \p' ->
+            replace id_ $ user { userPassword = p' }
 
-    deleteUser _ = delete
+    deleteUser ma id_ = do
+        authUser ma id_
+        delete id_

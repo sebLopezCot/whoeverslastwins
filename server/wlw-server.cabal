@@ -21,3 +21,4 @@ executable wlw-server
   other-modules:       Server
                      , Server.Games
                      , Server.Users
+                     , Utils
