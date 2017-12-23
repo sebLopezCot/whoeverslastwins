@@ -2,11 +2,14 @@
 
 module Server.Users (usersServer) where
 
+import Control.Monad.Except (throwError)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT)
-import Database.Persist
-    (Filter(Filter), PersistFilter(Eq), delete, entityVal, insert_, replace, selectList)
+import Crypto.BCrypt (hashPasswordUsingPolicy, slowerBcryptHashingPolicy, validatePassword)
+import Data.ByteString.Char8 (pack, unpack)
+import Database.Persist (delete, entityVal, insert_, replace, selectList)
 import Database.Persist.Sql (SqlBackend)
-import Servant (Handler, ServerT, (:<|>)((:<|>)))
+import Servant (Handler, ServerT, err400, (:<|>)((:<|>)))
 
 import Api.Users
 import Models.User
@@ -16,17 +19,20 @@ usersServer :: ServerT UsersApi (ReaderT SqlBackend Handler)
 usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser
   where
     createUser _ pc = do
+        let pwd = pack $ createPassword pc
+        mhPwd <- liftIO $ hashPasswordUsingPolicy slowerBcryptHashingPolicy pwd
+        hPwd <- maybe (throwError err400) pure mhPwd
         let user = User
                 { userUsername = createUsername pc
-                , userPassword = createPassword pc
+                , userPassword = unpack hPwd
                 , userScore = 0
                 }
         insert_ user
         pure user
 
     getAllUsers = maybe (pure []) $ \a -> do
-        users <- selectList [Filter UserPassword (Left a) Eq] []
-        pure $ entityVal <$> users
+        users <- selectList [] []
+        pure . filter (flip validatePassword (pack a) . pack . userPassword) $ entityVal <$> users
 
     getUser = authUser
 
