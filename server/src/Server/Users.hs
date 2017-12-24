@@ -7,16 +7,19 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT)
 import Crypto.BCrypt (hashPasswordUsingPolicy, slowerBcryptHashingPolicy, validatePassword)
 import Data.ByteString.Char8 (pack, unpack)
-import Database.Persist (delete, entityVal, insert_, replace, selectList)
+import Database.Persist
+    ( Filter(Filter), PersistFilter(Eq), delete, entityVal
+    , insert_, replace, selectFirst, selectList
+    )
 import Database.Persist.Sql (SqlBackend)
-import Servant (Handler, ServerT, err400, (:<|>)((:<|>)))
+import Servant (Handler, ServerT, err400, err401, (:<|>)((:<|>)))
 
 import Api.Users
 import Models.User
 import Utils
 
 usersServer :: ServerT UsersApi (ReaderT SqlBackend Handler)
-usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser
+usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> deleteUser :<|> login
   where
     createUser _ pc = do
         let pwd = pack $ createPassword pc
@@ -44,3 +47,10 @@ usersServer = createUser :<|> getAllUsers :<|> getUser :<|> updateUser :<|> dele
     deleteUser ma id_ = do
         authUser ma id_
         delete id_
+
+    login ul = do
+        userM <- selectFirst [Filter UserUsername (Left $ loginUsername ul) Eq] []
+        flip (maybe $ throwError err401) (entityVal <$> userM) $ \user ->
+            if validatePassword (pack $ userPassword user) (pack $ loginPassword ul)
+                then pure $ loginPassword ul
+                else throwError err401
