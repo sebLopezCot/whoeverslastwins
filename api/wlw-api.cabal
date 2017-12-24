@@ -18,3 +18,4 @@ library
                      , Api.Users
                      , Models.Game
                      , Models.User
+                     , Models.UserToken
