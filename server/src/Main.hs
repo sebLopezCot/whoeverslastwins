@@ -9,7 +9,7 @@ import Database.Persist.Sql (SqlBackend, runMigration)
 import Database.Persist.Sqlite (withSqliteConn)
 import Network.Wai.Handler.Warp (run)
 import Servant (Application, Handler, Proxy(Proxy), serve)
-import Servant.Utils.Enter ((:~>)(NT), enter)
+import Servant.Utils.Enter ((:~>)(Nat), enter)
 
 import Api
 import Models.Game
@@ -19,7 +19,7 @@ import Models.UserToken
 import Server
 
 app :: SqlBackend -> Application
-app db = serve @Api Proxy $ enter (NT $ flip (runReaderT @_ @_ @Handler) db) server
+app db = serve @Api Proxy $ enter (Nat $ flip (runReaderT @_ @_ @Handler) db) server
 
 main :: IO ()
 main = runNoLoggingT . withSqliteConn "wlw.db" $ \db -> do

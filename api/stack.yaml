@@ -1,5 +1,6 @@
-resolver: lts-9.2
+resolver: lts-8.11
 packages:
 - .
 extra-deps:
+- aeson-1.1.1.0
 - datetime-0.3.1
