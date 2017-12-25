@@ -2,13 +2,14 @@
 
 module Server.Games (gamesServer) where
 
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT)
 import Data.DateTime (addMinutes, getCurrentTime)
-import Database.Persist (entityVal, get, insert_, selectList, updateGet, (=.))
+import Database.Persist (entityKey, entityVal, get, insert_, selectList, updateGet, (=.))
 import Database.Persist.Sql (SqlBackend)
-import Servant (Handler, ServerT, err404, (:<|>)((:<|>)))
+import Servant (Handler, ServerT, err403, err404, (:<|>)((:<|>)))
 
 import Api.Games
 import Models.Game
@@ -37,7 +38,8 @@ gamesServer = createGame :<|> getAllGames :<|> getGame :<|> playGame
         maybe (throwError err404) pure gameM
 
     playGame ma gId uId = do
-        authUser ma uId
+        user <- authUser ma
+        when (entityKey user /= uId) $ throwError err403
         gameM <- get gId
         game <- maybe (throwError err404) pure gameM
         time <- liftIO getCurrentTime
