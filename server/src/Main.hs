@@ -14,6 +14,7 @@ import Servant.Utils.Enter ((:~>)(NT), enter)
 import Api
 import Models.Game
 import Models.User
+import Models.UserToken
 
 import Server
 
@@ -22,6 +23,8 @@ app db = serve @Api Proxy $ enter (NT $ flip (runReaderT @_ @_ @Handler) db) ser
 
 main :: IO ()
 main = runNoLoggingT . withSqliteConn "wlw.db" $ \db -> do
-    runReaderT (runMigration migrateUser) db
-    runReaderT (runMigration migrateGame) db
+    flip runReaderT db $ do
+        runMigration migrateUser
+        runMigration migrateUserToken
+        runMigration migrateGame
     liftIO . run 8081 $ app db

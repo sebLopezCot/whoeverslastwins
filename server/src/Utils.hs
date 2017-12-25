@@ -2,18 +2,17 @@ module Utils (authUser) where
 
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT)
-import Crypto.BCrypt (validatePassword)
-import Data.ByteString.Char8 (pack)
-import Database.Persist (get)
+import Database.Persist
+    (Entity, Filter(Filter), PersistFilter(Eq), entityVal, getEntity, selectFirst)
 import Database.Persist.Sql (SqlBackend)
-import Servant (Handler, err401, err403, err404)
+import Servant (Handler, err401)
 
 import Models.User
+import Models.UserToken
 
-authUser :: Maybe String -> UserId -> ReaderT SqlBackend Handler User
-authUser = maybe (\_ -> throwError err401) $ \a id_ -> do
-    userM <- get id_
-    flip (maybe $ throwError err404) userM $ \user ->
-        if validatePassword (pack $ userPassword user) (pack a)
-            then pure user
-            else throwError err403
+authUser :: Maybe String -> ReaderT SqlBackend Handler (Entity User)
+authUser = maybe (throwError err401) $ \a -> do
+    tokenM <- selectFirst [Filter UserTokenToken (Left a) Eq] []
+    flip (maybe $ throwError err401) tokenM $ \token -> do
+        userM <- getEntity . userTokenUser $ entityVal token
+        maybe (throwError err401) pure userM
