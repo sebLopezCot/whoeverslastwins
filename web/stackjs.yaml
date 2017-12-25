@@ -3,12 +3,15 @@ compiler: ghcjs-0.2.1.9008011_ghc-8.0.2
 compiler-check: match-exact
 packages:
 - .
+- ../api
 - location:
     git: https://github.com/liqula/react-hs
     commit: 0795a78b05ace05502994bb082979bfd7a35ea0c
   extra-dep: true
   subdirs:
   - react-hs
+extra-deps:
+- datetime-0.3.1
 setup-info:
   ghcjs:
     source:
