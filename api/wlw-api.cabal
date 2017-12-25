@@ -3,21 +3,18 @@ version:             0.0.0.0
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable wlw-api
+library
   hs-source-dirs:      src
-  main-is:             Main.hs
-  ghc-options:         -O2 -Wall
+  ghc-options:         -Wall
   default-language:    Haskell2010
-  build-depends:       base ==4.9.*
+  build-depends:       aeson ==1.1.*
+                     , base ==4.9.*
                      , datetime ==0.3.*
-                     , monad-logger ==0.3.*
-                     , mtl ==2.2.*
                      , persistent ==2.7.*
-                     , persistent-sqlite ==2.6.*
-                     , servant ==0.11.*
+                     , persistent-template ==2.5.*
                      , servant-server ==0.11.*
-                     , warp ==3.2.*
-                     , wlw-core ==0.0.*
-  other-modules:       Server
-                     , Server.Games
-                     , Server.Users
+  exposed-modules:     Api
+                     , Api.Games
+                     , Api.Users
+                     , Models.Game
+                     , Models.User
