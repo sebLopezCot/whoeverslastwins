@@ -9,8 +9,4 @@ executable wlw-web
   ghc-options:         -O2 -Wall
   default-language:    Haskell2010
   build-depends:       base ==4.9.*
-                     , react-hs ==0.1.*
-  if impl(ghcjs)
-    build-depends: ghcjs-base ==0.2.*
-  else
-    build-depends: ghcjs-base-stub ==0.1.*
+                     , miso ==0.12.*

@@ -2,10 +2,21 @@
 
 module Main (main) where
 
-import React.Flux (View, div_, mkView, reactRenderView)
+import Miso
+    ( App(App), View, defaultEvents, div_, events, initialAction
+    , model, mountPoint, noEff, startApp, subs, text, update, view
+    )
 
 main :: IO ()
-main = reactRenderView "content" baseView
+main = startApp App
+    { model = ()
+    , update = const noEff
+    , view = mainView
+    , initialAction = ()
+    , events = defaultEvents
+    , mountPoint = Nothing
+    , subs = []
+    }
 
-baseView :: View ()
-baseView = mkView "" $ \() -> div_ [] ""
+mainView :: () -> View ()
+mainView _ = div_ [] []
