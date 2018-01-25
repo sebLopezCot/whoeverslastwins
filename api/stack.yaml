@@ -1,5 +1,0 @@
-resolver: lts-9.2
-packages:
-- .
-extra-deps:
-- datetime-0.3.1
